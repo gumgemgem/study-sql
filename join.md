@@ -28,17 +28,21 @@ e.g. 表 a（id 字段具有唯一性）和 表 b 如下
 ```sql
 select * from a left join b on a.id = b.id;
 ```
+
 |id|value|id|number|        
 |---|---|---|---|           
 |1|66|1|2|
 |2|24|2|4|
 |1|66|1|3|             
 |2|24|2|5|
+
 查询后生成的新表没有继承表 a 字段 id 的唯一性  
 等价于
+
 ```sql
 select * from a right join b on a.id = b.id;
 ```
+
 |id|value|id|number|        
 |---|---|---|---|           
 |1|66|1|2|
