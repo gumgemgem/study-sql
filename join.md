@@ -1,9 +1,10 @@
 # Join 
 
-## 1、left join、right join、inner join 的区别
+## 1、left join、right join、inner join、full join 的区别
 
-- left join(左联接) 返回包括** 左表中的所有记录和右表中联结字段相等 **的记录  
-- right join(右联接) 返回包括** 右表中的所有记录和左表中联结字段相等 **的记录  
+- full (outer) join(全连接) 返回包括** 左表和右表中的所有 **的记录  
+- left (outer) join(左联接) 返回包括** 左表中的所有记录和右表中联结字段相等 **的记录  
+- right (outer) join(右联接) 返回包括** 右表中的所有记录和左表中联结字段相等 **的记录  
 - inner join(等值联接) 返回** 两个表中联结字段相等 **的记录  
 
 **注意**：  
