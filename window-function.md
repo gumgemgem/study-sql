@@ -45,10 +45,10 @@
 
 |名称|描述|
 |:---|:---|
-|CUME_DIST()|累积分配值|
+|CUME_DIST()|分区内累积分配值|
+|PERCENT_RANK()|分区内等级值|
 |RANK()|分区内当前行的排名，有间隙|
 |DENSE_RANK()|分区内当前行的排名，没有间隙|
-|PERCENT_RANK()|分区内等级值|
 |ROW_NUMBER()|分区内当前行的数量|
 |FIRST_VALUE()|窗口框架第一行的参数值|
 |LAST_VALUE()|窗口框架最后一行的参数值|
@@ -60,6 +60,10 @@
 ### 1、CUME_DIST()
 
 返回当前行的值的累积分布；即（分区中）**小于等于** 当前行的值的行数的累积分布  
+
+说明：  
+- CUME_DIST() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的  
+- 注意与 PERCENT_RANK() 的功能进行区分  
 
 ```sql
 select 
@@ -84,9 +88,49 @@ from scores;
 | Evans    |    87 |       9 |           0.9 |
 | Johnson  |   100 |      10 |             1 |
 
-### 2、RANK()
+### 2、PERCENT_RANK()
+
+分区内的百分位数排名；即返回分区中 **小于** 当前行**的值**的百分比，且分母 **不包括最高值**；计算公式为：  
+```
+(rank - 1) / (rows - 1)
+```  
+
+说明：  
+- 其中 `rank` 是当前行的等级（相同值的排名是一样的，且**有间隙**，等同于 rank()），`rows` 是分区中的总行数  
+- 对于分区中按照顺序排好后的第一行，结果始终为 0
+- 重复 `rank` 的值将返回相同的结果
+- PERCENT_RANK() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的
+
+```sql
+select 
+    name,
+    score,
+    row_number() over (order by score) as `row_num`,
+    cume_dist() over (order by score) as `cume_dist_val`,
+    round(percent_rank() over (order by score), 2) as `percent_rank`
+from scores;
+```
+
+结果：  
+| name     | score | row_num | cume_dist_val | percent_rank |
+|:---------|------:|--------:|--------------:|-------------:|
+| Jones    |    55 |       1 |           0.2 |         0.00 |
+| Williams |    55 |       2 |           0.2 |         0.00 |
+| Brown    |    62 |       3 |           0.4 |         0.22 |
+| Taylor   |    62 |       4 |           0.4 |         0.22 |
+| Thomas   |    72 |       5 |           0.6 |         0.44 |
+| Wilson   |    72 |       6 |           0.6 |         0.44 |
+| Smith    |    81 |       7 |           0.7 |         0.67 |
+| Davies   |    84 |       8 |           0.8 |         0.78 |
+| Evans    |    87 |       9 |           0.9 |         0.89 |
+| Johnson  |   100 |      10 |             1 |         1.00 |
+
+### 3、RANK()
 
 分区内当前行的排名，**有间隙**；即 **相同数值相同排名，下一个新数值的排名为分区中当前数值的行数**  
+
+说明：  
+- RANK() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的  
 
 ```sql
 select 
@@ -113,9 +157,12 @@ from sales;
 | Alice          |        2018 | 200.00 |          2 |
 | Bob            |        2018 | 200.00 |          2 |
 
-### 3、DENSE_RANK()
+### 4、DENSE_RANK()
 
 返回分区中当前行的排名，**没有间隙**；即 **相同数值相同排名，下一个新数值的排名加 1**  
+
+说明：  
+- DENSE_RANK() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的  
 
 ```sql
 select
@@ -142,17 +189,45 @@ from sales;
 | Alice          |        2018 | 200.00 |          2 |
 | Bob            |        2018 | 200.00 |          2 |
 
-### 4、PERCENT_RANK()
+### 5、ROW_NUMBER()
 
-分区内的百分比等级值；即返回分区中 **小于** 当前行的值的百分比，且分母 **不包括最高值**；计算公式为：  
-```
-(rank - 1) / (rows - 1)
-```  
+分区中当前行的编号，行数从 1 开始到分区行数结尾；也可作为分区内排名的一种函数  
 
 说明：  
-- 其中 `rank` 是行等级，`rows` 是分区中的总行数  
-- 对于分区中按照顺序排好后的第一行，结果始终为 0
-- 重复 `rank` 的值将返回相同的结果
+- ROW_NUMBER() 是一个顺序敏感函数，所以应始终使用 order by；否则行的编号是不正确的
+- ROW_NUMBER() 常用来**删除各个分区内的重复行，将非唯一行转换为唯一行**，见下例  
 
 ```sql
+select 
+    id,
+    name
+from (
+    select
+        id,
+        name,
+        row_number() over (partition by name order by name) as row_num
+    FROM rowNumberDemo
+) as t
+where row_num <> 1
 ```
+
+原始数据：  
+| id   | name |
+|-----:|:-----|
+|    1 | A    |
+|    2 | B    |
+|    3 | B    |
+|    4 | C    |
+|    5 | C    |
+|    6 | C    |
+|    7 | D    |
+
+结果：  
+| id   | name |
+|-----:|:-----|
+|    1 | A    |
+|    2 | B    |
+|    4 | C    |
+|    7 | D    |
+
+### 6、FIRST_VALUE()
