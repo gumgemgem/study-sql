@@ -139,8 +139,8 @@ FROM t
 
 |名称|描述|
 |:---|:---|
-|CUME_DIST()|分区内累积分配值|
-|PERCENT_RANK()|分区内等级值|
+|CUME_DIST()|分区内累积分配值；小于等于或大于等于当前行值的累积分布|
+|PERCENT_RANK()|分区内等级值；小于或大于当前行值的百分比（不包括最大值或最小值）|
 |RANK()|分区内当前行的排名，有间隙|
 |DENSE_RANK()|分区内当前行的排名，没有间隙|
 |ROW_NUMBER()|分区内当前行的数量|
@@ -153,10 +153,12 @@ FROM t
 
 ### 1、CUME_DIST()
 
-返回当前行的值的累积分布；即（分区中）**小于等于** 当前行的值的行数的累积分布  
+返回当前行的值的累积分布；即（分区中）**小于等于** 或 **大于等于** 当前行的值的行数的累积分布  
 
 说明：  
-- CUME_DIST() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的  
+- CUME_DIST() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的
+- 当 order by 升序：结果为 **小于等于** 当前行值的行数的累积分布；当 order by 降序：结果为 **大于等于** 当前行值的行数的累积分布
+- 当排序列中存在 null 值，同 `rank` 的排序规则  
 - 注意与 PERCENT_RANK() 的功能进行区分  
 
 ```sql
@@ -164,33 +166,36 @@ select
     name,
     score,
     row_number() over (order by score) as `row_num`,
-    cume_dist() over (order by score) as `cume_dist_val`
+    cume_dist() over (order by score) as `cume_dist_val`,
+    cume_dist() over (order by score desc) as `cume_dist_desc_val`
 from scores;
 ```
 
 结果：  
-| name     | score | row_num | cume_dist_val |
-|:---------|------:|--------:|--------------:|
-| Jones    |    55 |       1 |           0.2 |
-| Williams |    55 |       2 |           0.2 |
-| Brown    |    62 |       3 |           0.4 |
-| Taylor   |    62 |       4 |           0.4 |
-| Thomas   |    72 |       5 |           0.6 |
-| Wilson   |    72 |       6 |           0.6 |
-| Smith    |    81 |       7 |           0.7 |
-| Davies   |    84 |       8 |           0.8 |
-| Evans    |    87 |       9 |           0.9 |
-| Johnson  |   100 |      10 |             1 |
+| name     | score | row_num | cume_dist_val | cume_dist_desc_val |
+|:---------|------:|--------:|--------------:|-------------------:|
+| Jones    |    55 |       1 |           0.2 |                   1|
+| Williams |    55 |       2 |           0.2 |                   1|
+| Brown    |    62 |       3 |           0.4 |                 0.8|
+| Taylor   |    62 |       4 |           0.4 |                 0.8|
+| Thomas   |    72 |       5 |           0.6 |                 0.6|
+| Wilson   |    72 |       6 |           0.6 |                 0.6|
+| Smith    |    81 |       7 |           0.7 |                 0.4|
+| Davies   |    84 |       8 |           0.8 |                 0.3|
+| Evans    |    87 |       9 |           0.9 |                 0.2|
+| Johnson  |   100 |      10 |             1 |                 0.1|
 
 ### 2、PERCENT_RANK()
 
-分区内的百分位数排名；即返回分区中 **小于** 当前行**的值**的百分比，且分母 **不包括最高值**；计算公式为：  
+分区内的百分位数排名；即返回分区中 **小于** 或 **大于** 当前行**的值**的百分比，且分母 **不包括最高值或最低值**；计算公式为：  
 ```
 (rank - 1) / (rows - 1)
 ```  
 
 说明：  
-- 其中 `rank` 是当前行的等级（相同值的排名是一样的，且**有间隙**，等同于 rank()），`rows` 是分区中的总行数  
+- 其中 `rank` 是当前行的等级（相同值的排名是一样的，且**有间隙**，等同于 rank()），`rows` 是分区中的总行数
+- 当排序列中存在 null 值，同 `rank` 的排序规则
+- 当 order by 升序：结果为 **小于** 当前行值的百分比，且**不包括最高值**；当 order by 降序：结果为 **大于** 当前行值的百分比，且**不包括最低值**  
 - 对于分区中按照顺序排好后的第一行，结果始终为 0
 - 重复 `rank` 的值将返回相同的结果
 - PERCENT_RANK() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的
@@ -201,30 +206,34 @@ select
     score,
     row_number() over (order by score) as `row_num`,
     cume_dist() over (order by score) as `cume_dist_val`,
-    round(percent_rank() over (order by score), 2) as `percent_rank`
+    round(percent_rank() over (order by score), 2) as `percent_rank`, 
+    round(percent_rank() over (order by score desc), 2) as `percent_desc_rank`
 from scores;
 ```
 
 结果：  
-| name     | score | row_num | cume_dist_val | percent_rank |
-|:---------|------:|--------:|--------------:|-------------:|
-| Jones    |    55 |       1 |           0.2 |         0.00 |
-| Williams |    55 |       2 |           0.2 |         0.00 |
-| Brown    |    62 |       3 |           0.4 |         0.22 |
-| Taylor   |    62 |       4 |           0.4 |         0.22 |
-| Thomas   |    72 |       5 |           0.6 |         0.44 |
-| Wilson   |    72 |       6 |           0.6 |         0.44 |
-| Smith    |    81 |       7 |           0.7 |         0.67 |
-| Davies   |    84 |       8 |           0.8 |         0.78 |
-| Evans    |    87 |       9 |           0.9 |         0.89 |
-| Johnson  |   100 |      10 |             1 |         1.00 |
+| name     | score | row_num | cume_dist_val | percent_rank | percent_desc_rank |
+|:---------|------:|--------:|--------------:|-------------:|------------------:|
+| Jones    |    55 |       1 |           0.2 |         0.00 |              0.89 |
+| Williams |    55 |       2 |           0.2 |         0.00 |              0.89 |
+| Brown    |    62 |       3 |           0.4 |         0.22 |              0.67 |
+| Taylor   |    62 |       4 |           0.4 |         0.22 |              0.67 |
+| Thomas   |    72 |       5 |           0.6 |         0.44 |              0.44 |
+| Wilson   |    72 |       6 |           0.6 |         0.44 |              0.44 |
+| Smith    |    81 |       7 |           0.7 |         0.67 |              0.33 |
+| Davies   |    84 |       8 |           0.8 |         0.78 |              0.22 |
+| Evans    |    87 |       9 |           0.9 |         0.89 |              0.11 |
+| Johnson  |   100 |      10 |             1 |         1.00 |              0.00 |
 
 ### 3、RANK()
 
 分区内当前行的排名，**有间隙**；即 **相同数值相同排名，下一个新数值的排名为分区中当前数值的行数**  
 
 说明：  
-- RANK() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的  
+- RANK() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的
+- 排序列中存在 null 值的处理方式：
+  - **升序** 默认 **nulls last**（即认为 null 是 **最大值**，排在最后）；**降序** 默认 **nulls first**（即认为 null 是 **最大值**，排在最前）
+  - 可自定义 null 值的排序方式：e.g. 在 **升序** 排序时，指定 null 值为 **最小值**，`order by sale nulls first`   
 
 ```sql
 select 
@@ -256,7 +265,8 @@ from sales;
 返回分区中当前行的排名，**没有间隙**；即 **相同数值相同排名，下一个新数值的排名加 1**  
 
 说明：  
-- DENSE_RANK() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的  
+- DENSE_RANK() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的
+- 当排序列中存在 null 值，同 `rank` 的排序规则  
 
 ```sql
 select
@@ -289,7 +299,8 @@ from sales;
 
 说明：  
 - ROW_NUMBER() 是一个顺序敏感函数，所以应始终使用 order by；否则行的编号是不正确的
-- ROW_NUMBER() 常用来**删除各个分区内的重复行，将非唯一行转换为唯一行**，见下例  
+- ROW_NUMBER() 常用来**删除各个分区内的重复行，将非唯一行转换为唯一行**，见下例
+- 当排序列中存在 null 值，同 `rank` 的排序规则  
 
 ```sql
 select 
@@ -327,7 +338,7 @@ where row_num <> 1
 ### 6、FIRST_VALUE()、LAST_VALUE()、NTH_VALUE()
 
 - **FIRST_VALUE(col)**：返回窗口框架某列的第一行值  
-- **LAST_VALUE(col)**：返回窗口框架某列的第一行值  
+- **LAST_VALUE(col)**：返回窗口框架某列的最后一行值  
 - **NTH_VALUE(col, N)**：返回窗口框架某列第 N 行的参数值；如果第 N 行不存在，则函数返回NULL；N必须是正整数 
 
 ```sql
@@ -361,12 +372,12 @@ WINDOW w AS (PARTITION BY subject
 ### 7. LAG()、LEAD()
 
 - **LAG(col [, N[, default]])**：返回分区内某列当前行**滞后（或先于）** N 行的值
-  - 如果没有这样的行，则返回值为 default：比如当 N = 3 时，对于分区中的前两行而言，返回的都是 default 值  
+  - 如果没有这样的行，则返回值为 default：比如当 N = 3 时，对于分区中的前两行而言，返回的都是 default 值；且 defualt 可为某列的值  
   - 如果 N 或 default 缺少，则默认值分别为 1 和 NULL  
   - N 必须是非负整数；如果 N 为 0，col 则评估当前行  
 
 - **LEAD(col [, N[, default]])**：返回分区内某列当前行**跟随（或后于）** N 行的值
-  - 如果没有这样的行，则返回值为 default：比如当 N = 3 时，对于分区中的最后两行而言，返回的都是 default 值  
+  - 如果没有这样的行，则返回值为 default：比如当 N = 3 时，对于分区中的最后两行而言，返回的都是 default 值；且 defualt 可为某列的值  
   - 如果 N 或 default 缺少，则默认值分别为 1 和 NULL  
   - N 必须是非负整数；如果 N 为 0，col 则评估当前行  
 
