@@ -233,7 +233,9 @@ from scores;
 - RANK() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的
 - 排序列中存在 null 值的处理方式：
   - **升序** 默认 **nulls last**（即认为 null 是 **最大值**，排在最后）；**降序** 默认 **nulls first**（即认为 null 是 **最大值**，排在最前）
-  - 可自定义 null 值的排序方式：e.g. 在 **升序** 排序时，指定 null 值为 **最小值**，`order by sale nulls first`   
+  - 可自定义 null 值的排序方式：
+    - e.g. 在 **升序** 排序时，指定 null 值为 **最小值**，`order by sale nulls first` => oracle  
+    - e.g. 在 **升序** 排序时，指定 null 值为 **最小值**，`order by ifnull(sale, 0)` => mysql 且仅限 sale 为大于 0 的数   
 
 ```sql
 select 
