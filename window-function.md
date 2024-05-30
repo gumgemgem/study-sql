@@ -73,11 +73,24 @@ frame_units 指示**当前行**和**窗口行**之间的关系类型
 
 frame_extent 定义窗口框架的范围  
 
-- frame_start：只定义窗口的开头（frame_start），此时当前行作为隐式结束  
+- frame_start：只定义窗口的开头（frame_start），此时当前行作为隐式结束
+
+```sql
+frame_units frame_start
+```
+e.g.  
+```sql
+rows unbounding preceding
+```
+
 - frame_between：定义窗口的开头（frame_start）和结尾（frame_end）；且 frame_start 必须早于 frame_end  
 
 ```sql
-BETWEEN frame_start AND frame_end
+frame_units BETWEEN frame_start AND frame_end
+```
+e.g.  
+```sql
+rows between unbounding preceding and unbounding following
 ```
 
 frame_start 和 frame_end 的选择：  
