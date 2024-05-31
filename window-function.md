@@ -37,8 +37,8 @@
 
 1. ```<窗口函数>``` 主要包括：
 
-- 专用窗口函数，如：rank()、dense_rank()、row_number() 等
-- 聚合函数，如：sum()、avg()、max()、min() 等
+- 专用窗口函数 (**部分专有窗口函数有参数，部分没有参数**)，如：rank()、dense_rank()、row_number() 等
+- 聚合函数 (**聚合函数内必须填写需要聚合的列名**)，如：sum()、avg()、max()、min() 等
 
 2. **窗口函数原则上只能写在 select 子句中**
 3. frame_clause 创建窗口子句，是当前分区的子集  
@@ -157,18 +157,19 @@ FROM t
 |RANK()|分区内当前行的排名，有间隙|
 |DENSE_RANK()|分区内当前行的排名，没有间隙|
 |ROW_NUMBER()|分区内当前行的数量|
-|FIRST_VALUE()|窗口框架第一行的参数值|
-|LAST_VALUE()|窗口框架最后一行的参数值|
-|NTH_VALUE()|窗口框架第 N 行的参数值|
-|LAG()|分区内滞后当前行的参数值|
-|LEAD()|分区内超前当前行的参数值|
-|NTILE()|分区内当前行的储存桶编号|  
+|FIRST_VALUE(col)|窗口框架第一行的参数值|
+|LAST_VALUE(col)|窗口框架最后一行的参数值|
+|NTH_VALUE(col, N)|窗口框架第 N 行的参数值|
+|LAG(col [, N [, defualt]])|分区内滞后当前行的参数值|
+|LEAD(col [, N [, defualt]])|分区内超前当前行的参数值|
+|NTILE(N)|分区内当前行的储存桶编号|  
 
 ### 1、CUME_DIST()
 
 返回当前行的值的累积分布；即（分区中）**小于等于** 或 **大于等于** 当前行的值的行数的累积分布  
 
 说明：  
+- 无参数（统计的是 order by 紧跟的 column 的累积分布）  
 - CUME_DIST() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的
 - 当 order by 升序：结果为 **小于等于** 当前行值的行数的累积分布；当 order by 降序：结果为 **大于等于** 当前行值的行数的累积分布
 - 当排序列中存在 null 值，同 `rank` 的排序规则  
@@ -206,6 +207,7 @@ from scores;
 ```  
 
 说明：  
+- 无参数（统计的是 order by 紧跟的 column 的百分位数排名）  
 - 其中 `rank` 是当前行的等级（相同值的排名是一样的，且**有间隙**，等同于 rank()），`rows` 是分区中的总行数
 - 当排序列中存在 null 值，同 `rank` 的排序规则
 - 当 order by 升序：结果为 **小于** 当前行值的百分比，且**不包括最高值**；当 order by 降序：结果为 **大于** 当前行值的百分比，且**不包括最低值**  
@@ -243,6 +245,7 @@ from scores;
 分区内当前行的排名，**有间隙**；即 **相同数值相同排名，下一个新数值的排名为分区中当前数值的行数**  
 
 说明：  
+- 无参数（统计的是 order by 紧跟的 column 的排名）  
 - RANK() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的
 - 排序列中存在 null 值的处理方式：
   - **升序** 默认 **nulls last**（即认为 null 是 **最大值**，排在最后）；**降序** 默认 **nulls first**（即认为 null 是 **最大值**，排在最前）
@@ -280,6 +283,7 @@ from sales;
 返回分区中当前行的排名，**没有间隙**；即 **相同数值相同排名，下一个新数值的排名加 1**  
 
 说明：  
+- 无参数（统计的是 order by 紧跟的 column 的排名）  
 - DENSE_RANK() 是一个顺序敏感函数，所以应始终使用 order by；否则所有行都是对等的
 - 当排序列中存在 null 值，同 `rank` 的排序规则  
 
@@ -313,6 +317,7 @@ from sales;
 分区中当前行的编号，行数从 1 开始到分区行数结尾；也可作为分区内排名的一种函数  
 
 说明：  
+- 无参数（统计的是 order by 紧跟的 column 的排名）  
 - ROW_NUMBER() 是一个顺序敏感函数，所以应始终使用 order by；否则行的编号是不正确的
 - ROW_NUMBER() 常用来**删除各个分区内的重复行，将非唯一行转换为唯一行**，见下例
 - 当排序列中存在 null 值，同 `rank` 的排序规则  
@@ -328,7 +333,7 @@ from (
         row_number() over (partition by name order by name) as row_num
     FROM rowNumberDemo
 ) as t
-where row_num <> 1
+where row_num = 1
 ```
 
 原始数据：  
@@ -350,7 +355,7 @@ where row_num <> 1
 |    4 | C    |
 |    7 | D    |
 
-### 6、FIRST_VALUE()、LAST_VALUE()、NTH_VALUE()
+### 6、FIRST_VALUE(col)、LAST_VALUE(col)、NTH_VALUE(col, N)
 
 - **FIRST_VALUE(col)**：返回窗口框架某列的第一行值  
 - **LAST_VALUE(col)**：返回窗口框架某列的最后一行值  
@@ -384,7 +389,7 @@ WINDOW w AS (PARTITION BY subject
 | 07:45:00 |    xh458 |       30 |        0 |       30 |       10 |       30 |
 | 08:00:00 |    xh458 |       25 |        0 |       25 |       10 |       30 |
 
-### 7. LAG()、LEAD()
+### 7. LAG(col [, N[, default]])、LEAD(col [, N[, default]])
 
 - **LAG(col [, N[, default]])**：返回分区内某列当前行**滞后（或先于）** N 行的值
   - 如果没有这样的行，则返回值为 default：比如当 N = 3 时，对于分区中的前两行而言，返回的都是 default 值；且 defualt 可为某列的值  
@@ -417,7 +422,7 @@ WINDOW w AS (ORDER BY n)
 |        5 |        3 |        8 |        8 |         13 |
 |        8 |        5 |        0 |       13 |          8 |
 
-### 8. NTILE()
+### 8. NTILE(N)
 
 **NTILE(N)** 将分区划分为 N 组（存储桶），为分区中的每一行分配其存储桶编号，并返回其分区中当前行的存储区编号  
 
