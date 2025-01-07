@@ -25,8 +25,8 @@
    **语法**：unix_timestamp([string date], [string pattern])  
    **返回值**：返回的时间戳为 bigint 类型  
    **说明**：
-       - 两个参数都省略时，表示将**当前时间**转化为时间戳
-       - 只省略 string pattern 时，string date 必须是 TIMESTAMP 类型的数据，且格式必须是 yyyy-MM-dd HH:mm:ss  
+   - 两个参数都省略时，表示将**当前时间**转化为时间戳  
+   - 只省略 string pattern 时，string date 必须是 TIMESTAMP 类型的数据，且格式必须是 yyyy-MM-dd HH:mm:ss  
 
    ```sql
    select
@@ -57,8 +57,8 @@
 
    **语法**：from_unixtime(bigint unixtime[, string format])  
    **返回值**：返回为 string 类型的日期     
-   **说明**： 
-       - string format 省略时，默认返回 yyyy-MM-dd HH:mm:ss 格式的 string 类型  
+   **说明**：
+   - string format 省略时，默认返回 yyyy-MM-dd HH:mm:ss 格式的 string 类型  
 
    ```sql
    select
@@ -79,8 +79,8 @@
 
    **语法**：date_add(string startdate, int days)  
    **返回值**：返回为 string 类型的日期     
-   **说明**：
-       - string startdate 可以是日期或时间，但必须是 yyyy-MM-dd 或 yyyy-MM-dd HH:mm:ss 的格式  
+   **说明**：  
+   - string startdate 可以是日期或时间，但必须是 yyyy-MM-dd 或 yyyy-MM-dd HH:mm:ss 的格式  
 
    ```sql
    select
@@ -101,16 +101,16 @@
 
    **语法**：date_sub(string startdate, int days)  
    **返回值**：返回为 string 类型的日期     
-   **说明**：
+   **说明**：  
        - string startdate 可以是日期或时间，但必须是 yyyy-MM-dd 或 yyyy-MM-dd HH:mm:ss 的格式  
 
-6. date_diff()  
+7. date_diff()  
    计算两个日期之间的天数差  
 
    **语法**：date_diff(string enddate, string startdate)  
    **返回值**：返回为 int 类型的数值     
-   **说明**：
-       - string enddate、string startdate 可以是日期或时间，但必须是 yyyy-MM-dd 或 yyyy-MM-dd HH:mm:ss 的格式  
+   **说明**：  
+   - string enddate、string startdate 可以是日期或时间，但必须是 yyyy-MM-dd 或 yyyy-MM-dd HH:mm:ss 的格式  
 
    ```sql
    select
